@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Multi-Obra — Avance + Montos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#07090f;--s1:#0d1117;--s2:#111820;--s3:#16202e;--s4:#1c2b3f;
+  --bd:#1e2d42;--bd2:#253347;
+  --ac:#2563eb;--acl:#60a5fa;
+  --tx:#eef2ff;--txm:#8ba0bc;--txd:#3d5068;
+  --ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--money:#a78bfa;
+  --fn:'Inter','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg);color:var(--tx);min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:58px;background:var(--s1);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:300;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.brand-icon{width:34px;height:34px;background:var(--ac);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+.brand-name{font-size:14px;font-weight:700}
+.brand-sub{font-size:10px;color:var(--txm);margin-top:1px}
+.upload-area{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.upload-btn{display:flex;align-items:center;gap:9px;background:var(--s3);border:1.5px dashed var(--bd2);border-radius:10px;padding:7px 14px;cursor:pointer;transition:.18s;position:relative}
+.upload-btn:hover{border-color:var(--ac);background:var(--s4)}
+.upload-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:17px}
+.upload-txt{font-size:11px;color:var(--txm);line-height:1.35}
+.upload-txt b{display:block;font-size:12px;color:var(--acl)}
+.obras-count{font-size:11px;color:var(--txm);background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:5px 12px;white-space:nowrap}
+.obras-count strong{color:var(--acl)}
+.btn-sm{font-size:11px;color:var(--txd);background:none;border:1px solid var(--bd);border-radius:8px;padding:5px 12px;cursor:pointer;transition:.15s}
+.btn-sm:hover{color:var(--bad);border-color:var(--bad)}
+.money-badge{font-size:10px;font-weight:700;background:rgba(167,139,250,.15);color:var(--money);border:1px solid rgba(167,139,250,.3);border-radius:6px;padding:3px 9px}
+.tabs-bar{display:flex;background:var(--s1);border-bottom:1px solid var(--bd);padding:0 24px;overflow-x:auto;scrollbar-width:none;position:sticky;top:58px;z-index:200}
+.tabs-bar::-webkit-scrollbar{display:none}
+.tab{padding:13px 18px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--txd);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:.15s;flex-shrink:0}
+.tab:hover{color:var(--txm)}.tab.on{color:var(--acl);border-bottom-color:var(--ac)}
+.tab-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.sub-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:4px;width:fit-content}
+.sub-tab{padding:7px 18px;font-size:12px;font-weight:600;color:var(--txd);background:none;border:none;border-radius:7px;cursor:pointer;transition:.15s;white-space:nowrap}
+.sub-tab:hover{color:var(--txm)}.sub-tab.on{background:var(--s4);color:var(--tx)}
+.main{padding:24px;max-width:1600px;margin:0 auto}
+.panel{display:none}.panel.on{display:block}
+.sp{display:none}.sp.on{display:block}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:22px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+@media(max-width:1200px){.g5{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:860px){.g3,.g2{grid-template-columns:1fr}}
+@media(max-width:540px){.g4,.g5{grid-template-columns:1fr}}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+.card-stripe{position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0}
+.card-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txd);margin-bottom:7px}
+.card-val{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+.card-sub{font-size:11px;color:var(--txm);margin-top:6px;line-height:1.5}
+.prog-bg{margin-top:12px;height:4px;background:var(--s4);border-radius:2px;overflow:hidden}
+.prog-fg{height:100%;border-radius:2px;transition:width .9s ease}
+.monto-card{background:linear-gradient(135deg,rgba(167,139,250,.07),rgba(167,139,250,.02));border:1px solid rgba(167,139,250,.2)}
+.monto-card .card-lbl{color:rgba(167,139,250,.6)}
+.cc{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:20px 22px;margin-bottom:22px}
+.cc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+.cc-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--txm)}
+.ch{position:relative;width:100%}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;padding:10px 12px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--txd);border-bottom:1px solid var(--bd);white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(30,45,66,.5);transition:background .12s}
+tbody tr:hover{background:var(--s2)}
+tbody td{padding:10px 12px;color:var(--txm);vertical-align:middle}
+tbody td:first-child{color:var(--tx);font-weight:600}
+.num-r{text-align:right}
+.mp{display:flex;align-items:center;gap:8px;min-width:120px}
+.mp-bar{flex:1;height:4px;background:var(--s4);border-radius:2px;overflow:hidden}
+.mp-fill{height:100%;border-radius:2px}
+.mp-lbl{font-size:11px;font-weight:700;width:44px;text-align:right;flex-shrink:0}
+.pills{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.pill{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:13px 18px;flex:1;min-width:120px}
+.pill-val{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.pill-lbl{font-size:9px;color:var(--txd);margin-top:4px;text-transform:uppercase;letter-spacing:.08em}
+.b{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.b-g{background:rgba(16,185,129,.12);color:#34d399}.b-y{background:rgba(245,158,11,.12);color:#fbbf24}
+.b-r{background:rgba(239,68,68,.12);color:#f87171}.b-b{background:rgba(37,99,235,.12);color:#60a5fa}
+.ded{background:linear-gradient(135deg,rgba(37,99,235,.06),rgba(37,99,235,.02));border:1px solid rgba(37,99,235,.22);border-radius:12px;padding:16px 20px;margin-bottom:20px}
+.ded h4{font-size:10px;font-weight:700;color:var(--acl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.ded p{font-size:12px;color:var(--txm);line-height:1.8}
+.alert{border-radius:10px;padding:11px 15px;font-size:12px;margin-bottom:16px;display:flex;align-items:flex-start;gap:9px}
+.alert-ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#6ee7b7}
+.alert-info{background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);color:#93c5fd}
+.frow{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+select,input[type=text]{background:var(--s2);border:1px solid var(--bd);color:var(--txm);font-size:12px;padding:7px 11px;border-radius:8px;cursor:pointer;outline:none}
+select:focus,input:focus{border-color:var(--ac);color:var(--tx)}
+.comp-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(30,45,66,.5)}
+.comp-row:last-child{border:none}
+.comp-name{width:150px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--tx)}
+.comp-bar-wrap{flex:1;height:8px;background:var(--s4);border-radius:4px;overflow:hidden;min-width:60px}
+.comp-bar-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.comp-pct{width:48px;font-size:12px;font-weight:700;text-align:right;flex-shrink:0}
+.comp-monto{width:90px;font-size:11px;text-align:right;flex-shrink:0;color:var(--money)}
+.obra-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.obra-title{font-size:18px;font-weight:800}
+.obra-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:middle}
+.obra-meta{font-size:11px;color:var(--txm);margin-top:4px}
+.div{height:1px;background:var(--bd);margin:22px 0}
+.empty{text-align:center;padding:72px 24px;color:var(--txd)}
+.empty-icon{font-size:40px;margin-bottom:16px;opacity:.3}
+.empty h3{font-size:16px;color:var(--txm);margin-bottom:10px}
+.empty p{font-size:12px;color:var(--txd);line-height:1.8;max-width:480px;margin:0 auto}
+.step{display:inline-flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:11px;margin:4px}
+#ld{position:fixed;inset:0;background:rgba(7,9,15,.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
+.spin{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ld-txt{font-size:12px;color:var(--txm)}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+</style>
+</head>
+<body>
+<div id="ld"><div class="spin"></div><div class="ld-txt" id="ld-txt">Leyendo archivo…</div></div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">AO</div>
+    <div><div class="brand-name">Dashboard Multi-Obra</div><div class="brand-sub">Avance · Montos · Requerimientos</div></div>
+  </div>
+  <div class="upload-area">
+    <div class="obras-count" id="obras-count"><strong id="n-obras">0</strong> obra(s) · <strong id="n-montos">0</strong> con montos</div>
+    <span class="money-badge" id="money-badge" style="display:none">💰 Montos activos</span>
+    <label class="upload-btn">
+      <span class="upload-icon">📂</span>
+      <div class="upload-txt"><b>Agregar / Actualizar Obra</b>.xlsx · .xls · .csv</div>
+      <input type="file" id="file-in" accept=".xlsx,.xls,.csv" multiple>
+    </label>
+    <button class="btn-sm" onclick="clearAll()">✕ Limpiar</button>
+  </div>
+</div>
+
+<div class="tabs-bar" id="tabs-bar">
+  <button class="tab on" data-tab="global" onclick="switchTab('global',this)">
+    <span class="tab-dot" style="background:#60a5fa"></span>Resumen Global
+  </button>
+</div>
+
+<div class="main">
+  <div class="panel on" id="panel-global">
+    <div id="global-empty" class="empty">
+      <div class="empty-icon">🏗</div>
+      <h3>Carga los archivos de tus obras para comenzar</h3>
+      <p>Para ver montos y requerimientos, agrega una hoja llamada <strong style="color:var(--money)">MONTOS</strong> a tu Excel con columnas <strong>CONCEPTO</strong> y <strong>MONTO UNITARIO</strong>.</p>
+      <div style="margin-top:20px">
+        <span class="step">① Carga uno o varios .xlsx</span>
+        <span class="step">② Cada obra = una pestaña</span>
+        <span class="step">③ Hoja MONTOS = cálculo financiero</span>
+      </div>
+    </div>
+    <div id="global-content" style="display:none">
+      <div class="g5" id="global-kpis"></div>
+      <div class="g2">
+        <div class="cc">
+          <div class="cc-hdr">
+            <span class="cc-title">Comparativo por Obra</span>
+            <select id="sort-comp" onchange="renderComparativo()">
+              <option value="avance">Mayor avance</option>
+              <option value="nombre">Nombre A-Z</option>
+              <option value="pendiente">Mayor monto pendiente</option>
+            </select>
+          </div>
+          <div id="comparativo-list"></div>
+        </div>
+        <div class="cc">
+          <div class="cc-hdr">
+            <span class="cc-title">Avance por Obra</span>
+            <select id="chart-type" onchange="renderGlobalChart()">
+              <option value="bar">Barras verticales</option>
+              <option value="hbar">Barras horizontales</option>
+            </select>
+          </div>
+          <div class="ch" style="height:280px"><canvas id="ch-global"></canvas></div>
+        </div>
+      </div>
+      <div id="montos-global-section" style="display:none">
+        <div class="g3" id="montos-global-kpis"></div>
+        <div class="cc">
+          <div class="cc-hdr">
+            <span class="cc-title">💰 Requerimiento por Frente de Trabajo — Todas las Obras</span>
+            <select id="sort-frente-g" onchange="renderFrentesGlobal()">
+              <option value="pendiente">Mayor monto pendiente</option>
+              <option value="semanal">Mayor req. semanal</option>
+              <option value="concepto">Concepto A-Z</option>
+            </select>
+          </div>
+          <div class="tbl-wrap" id="frentes-global-tbl"></div>
+        </div>
+      </div>
+      <div class="cc">
+        <div class="cc-hdr">
+          <span class="cc-title">Consolidado de todas las obras</span>
+          <div class="frow" style="margin:0">
+            <input type="text" id="search-global" placeholder="Buscar obra, MNZ…" oninput="renderGlobalTable()" style="width:180px">
+            <select id="filter-estado" onchange="renderGlobalTable()">
+              <option value="">Todos los estados</option>
+              <option value="ok">En tiempo</option>
+              <option value="prog">En progreso</option>
+              <option value="rez">Rezagado</option>
+            </select>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="global-tbl"></div>
+      </div>
+    </div>
+  </div>
+  <div id="obra-panels"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════
+const OBRAS = new Map();
+let chGlobal;
+const obraCharts = {};
+const PALETTE = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899','#84cc16','#a855f7'];
+const SEM_NUM = {};
+for(let i=1;i<=60;i++){SEM_NUM[`S.${i}`]=i;SEM_NUM[`S. ${i}`]=i;}
+const SEM_ACT = 25;
+
+// ═══════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════
+document.getElementById('file-in').addEventListener('change', async function(e){
+  const files=[...e.target.files]; if(!files.length) return;
+  document.getElementById('ld').style.display='flex';
+  for(let i=0;i<files.length;i++){
+    document.getElementById('ld-txt').textContent=`Leyendo ${files[i].name} (${i+1}/${files.length})…`;
+    await readFile(files[i]);
+  }
+  document.getElementById('ld').style.display='none';
+  e.target.value='';
+  renderAll();
+});
+
+function readFile(f){
+  return new Promise(resolve=>{
+    const r=new FileReader();
+    r.onload=ev=>{try{parseExcel(ev.target.result,f.name);}catch(e){console.error(e);}resolve();};
+    if(f.name.endsWith('.csv')) r.readAsText(f); else r.readAsArrayBuffer(f);
+  });
+}
+
+// ═══════════════════════════════════════
+//  PARSE EXCEL
+// ═══════════════════════════════════════
+function parseExcel(data, filename){
+  const wb = filename.endsWith('.csv')
+    ? XLSX.read(data,{type:'string'})
+    : XLSX.read(new Uint8Array(data),{type:'array',raw:true});
+
+  // Nombre de obra desde filename
+  let obraName = filename.replace(/\.(xlsx|xls|csv)$/i,'').trim();
+  // Intentar desde celda
+  const ws0 = wb.Sheets[wb.SheetNames[0]];
+  const raw0 = XLSX.utils.sheet_to_json(ws0,{header:1,defval:null,raw:true});
+  for(let ri=0;ri<Math.min(5,raw0.length);ri++){
+    for(let ci=0;ci<(raw0[ri]?.length||0);ci++){
+      const v=raw0[ri]?.[ci];
+      if(v&&typeof v==='string'){
+        const t=v.trim();
+        if(t.length>3&&t.length<60&&!['REVISIONES','REALIZADO','FECHA','MNZ','LOTE','SEMANA'].some(x=>t.toUpperCase().startsWith(x))){
+          obraName=t; break;
+        }
+      }
+    }
+  }
+
+  const colorIdx = OBRAS.has(obraName) ? OBRAS.get(obraName)._colorIdx : OBRAS.size%PALETTE.length;
+  const obra = {
+    nombre:obraName, color:PALETTE[colorIdx], _colorIdx:colorIdx,
+    resumen:[], s25:[], conceptos:[],
+    semanas_prop:new Set(), mnzs:new Set(),
+    montos:{}, hasMontos:false,
+  };
+
+  // ── HOJA RESUMEN (primera hoja) ──
+  for(let i=9;i<raw0.length;i++){
+    const r=raw0[i];
+    if(!r||r[0]==null||typeof r[0]!=='number') continue;
+    const avTotal=typeof r[31]==='number'?r[31]:(typeof r[4]==='number'?r[4]:0);
+    if((avTotal||0)===0) continue;
+    const sp=r[32]?String(r[32]).trim():'';
+    obra.resumen.push({mnz:+r[0],lote:+r[1],nivel:String(r[2]||''),depto:String(r[3]||''),
+      avance:round(avTotal*100),sem_prop:sp});
+    obra.mnzs.add(+r[0]);
+    if(sp) obra.semanas_prop.add(sp);
+  }
+
+  // ── HOJA MONTOS (buscar por nombre) ──
+  const montosSheet = wb.SheetNames.find(n=>n.trim().toUpperCase()==='MONTOS');
+  if(montosSheet){
+    // Leer como array de arrays para encontrar encabezados en cualquier fila/columna
+    const rawM = XLSX.utils.sheet_to_json(wb.Sheets[montosSheet],{header:1,defval:null,raw:true});
+    let hdrRow=-1, colConc=-1, colMonto=-1;
+    // Escanear primeras 10 filas para encontrar fila de encabezados
+    for(let ri=0;ri<Math.min(10,rawM.length);ri++){
+      const row=rawM[ri]||[];
+      let foundC=false, foundM=false;
+      for(let ci=0;ci<row.length;ci++){
+        const v=String(row[ci]||'').toUpperCase().trim();
+        if(v==='CONCEPTO'||v==='CONCEPTOS'){colConc=ci;foundC=true;}
+        if((v.includes('MONTO')||v.includes('IMPORTE')||v.includes('PRECIO')||v.includes('COSTO'))&&!v.includes('CONCEPTO')){colMonto=ci;foundM=true;}
+      }
+      if(foundC&&foundM){hdrRow=ri;break;}
+    }
+    if(hdrRow>=0&&colConc>=0&&colMonto>=0){
+      for(let ri=hdrRow+1;ri<rawM.length;ri++){
+        const row=rawM[ri]||[];
+        const concepto=String(row[colConc]||'').trim().toUpperCase();
+        const mv=row[colMonto];
+        const monto=typeof mv==='number'?mv:parseFloat(String(mv||'').replace(/[^0-9.\-]/g,''))||0;
+        if(concepto&&monto>0) obra.montos[concepto]=monto;
+      }
+      obra.hasMontos=Object.keys(obra.montos).length>0;
+    }
+  }
+
+  // ── HOJA S.25 (buscar por nombre que empiece con S.25 o S. 25) ──
+  const s25Sheet = wb.SheetNames.find(n=>{
+    const t=n.trim().toUpperCase();
+    return t.startsWith('S.25')||t.startsWith('S. 25')||t==='S25';
+  }) || (wb.SheetNames.length>=3?wb.SheetNames[2]:wb.SheetNames.length>=2?wb.SheetNames[1]:null);
+
+  if(s25Sheet){
+    const raw2=XLSX.utils.sheet_to_json(wb.Sheets[s25Sheet],{header:1,defval:null,raw:true});
+    if(raw2.length>=9){
+      const conceptRow=raw2[7]||[];
+      const concepts=[];
+      for(let c=4;c<=22;c++){
+        const v=conceptRow[c];
+        // CLAVE: trim() para eliminar espacios que rompen el match con MONTOS
+        const vt=v?String(v).trim():'';
+        if(vt&&vt!=='OBSERVACIONES') concepts.push(vt);
+      }
+      obra.conceptos=concepts;
+      for(let i=9;i<raw2.length;i++){
+        const r=raw2[i];
+        if(!r||r[0]==null||typeof r[0]!=='number') continue;
+        const avT=typeof r[24]==='number'?r[24]:0;
+        const conc={};
+        concepts.forEach((c,ci)=>{ conc[c]=round((r[4+ci]||0)*100); });
+        obra.s25.push({mnz:+r[0],lote:+r[1],nivel:String(r[2]||''),depto:String(r[3]||''),
+          avance:round(avT*100),conceptos:conc});
+      }
+    }
+  }
+
+  OBRAS.set(obraName,obra);
+  console.log(`[${obraName}] resumen=${obra.resumen.length} s25=${obra.s25.length} conceptos=${obra.conceptos.length} montos=${Object.keys(obra.montos).length} hasMontos=${obra.hasMontos}`);
+}
+
+// ═══════════════════════════════════════
+//  CÁLCULOS FINANCIEROS
+// ═══════════════════════════════════════
+function calcFinanciero(obra, rowsS25, rowsRes){
+  if(!obra.hasMontos||!rowsS25||!rowsS25.length) return null;
+
+  const semPropNums=[...new Set((rowsRes||[]).map(r=>r.sem_prop).filter(Boolean))]
+    .map(s=>SEM_NUM[s]||null).filter(Boolean);
+  const maxSemProp=semPropNums.length?Math.max(...semPropNums):null;
+  const semsRest=maxSemProp?Math.max(maxSemProp-SEM_ACT,1):null;
+
+  const frentes=obra.conceptos.map(c=>{
+    const cKey=c.toUpperCase().trim();
+    // Buscar con trim() en ambos lados para evitar mismatch por espacios
+    let montoUnit=obra.montos[cKey]||0;
+    if(!montoUnit){
+      const found=Object.entries(obra.montos).find(([k])=>k.trim()===cKey);
+      if(found) montoUnit=found[1];
+    }
+    const avProm=avg(rowsS25.map(r=>r.conceptos[c]||0));
+    const nDeptos=rowsS25.length;
+    const montoTotal=montoUnit*nDeptos;
+    const montoEjercido=montoTotal*(avProm/100);
+    const montoPendiente=montoTotal-montoEjercido;
+    const montoPorSemana=semsRest?montoPendiente/semsRest:null;
+    return{concepto:c,montoUnit,nDeptos,avProm:round(avProm),
+      montoTotal,montoEjercido:round(montoEjercido),montoPendiente:round(montoPendiente),
+      montoPorSemana:montoPorSemana?round(montoPorSemana):null,semsRest,maxSemProp};
+  }).filter(f=>f.montoUnit>0);
+
+  if(!frentes.length) return null;
+
+  const totalPresup=frentes.reduce((a,f)=>a+f.montoTotal,0);
+  const totalEjercido=frentes.reduce((a,f)=>a+f.montoEjercido,0);
+  const totalPendiente=frentes.reduce((a,f)=>a+f.montoPendiente,0);
+  const totalSemanal=frentes.reduce((a,f)=>a+(f.montoPorSemana||0),0);
+  return{frentes,totalPresup,totalEjercido,totalPendiente,totalSemanal,semsRest,maxSemProp};
+}
+
+// ═══════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════
+function renderAll(){
+  document.getElementById('n-obras').textContent=OBRAS.size;
+  const nm=[...OBRAS.values()].filter(o=>o.hasMontos).length;
+  document.getElementById('n-montos').textContent=nm;
+  document.getElementById('money-badge').style.display=nm>0?'inline-block':'none';
+  buildTabs();
+  renderGlobal();
+}
+
+// ═══════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════
+function buildTabs(){
+  const bar=document.getElementById('tabs-bar');
+  bar.querySelectorAll('.tab.obra-tab').forEach(b=>b.remove());
+  OBRAS.forEach((obra,name)=>{
+    const btn=document.createElement('button');
+    btn.className='tab obra-tab';
+    btn.innerHTML=`<span class="tab-dot" style="background:${obra.color}"></span>${name}${obra.hasMontos?' 💰':''}`;
+    btn.onclick=()=>switchTab('obra-'+safeid(name),btn,name);
+    bar.appendChild(btn);
+  });
+  const container=document.getElementById('obra-panels');
+  container.innerHTML='';
+  OBRAS.forEach((obra)=>{
+    const div=document.createElement('div');
+    div.className='panel';
+    div.id='panel-obra-'+safeid(obra.nombre);
+    div.innerHTML=buildObraPanel(obra);
+    container.appendChild(div);
+  });
+}
+
+function switchTab(tabKey,btn,obraName){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('panel-'+tabKey).classList.add('on');
+  if(obraName) renderObraCharts(obraName);
+}
+
+// ═══════════════════════════════════════
+//  GLOBAL
+// ═══════════════════════════════════════
+function renderGlobal(){
+  if(!OBRAS.size) return;
+  document.getElementById('global-empty').style.display='none';
+  document.getElementById('global-content').style.display='block';
+
+  const todas=[...OBRAS.values()].flatMap(o=>o.resumen);
+  const avgG=round(avg(todas.map(r=>r.avance)));
+  const obras=[...OBRAS.values()];
+  obras.forEach(o=>o._avg=round(avg(o.resumen.map(r=>r.avance))));
+  const oMax=obras.reduce((a,b)=>a._avg>=b._avg?a:b);
+  const oMin=obras.reduce((a,b)=>a._avg<=b._avg?a:b);
+
+  let totPresup=0,totEjerc=0,totPend=0,totSem=0;
+  obras.forEach(o=>{
+    const fin=calcFinanciero(o,o.s25,o.resumen);
+    if(fin){totPresup+=fin.totalPresup;totEjerc+=fin.totalEjercido;totPend+=fin.totalPendiente;totSem+=fin.totalSemanal;}
+  });
+  const hasMG=totPresup>0;
+
+  let kHtml=`
+    ${kCard('Avance Promedio Global',avgG+'%',`${OBRAS.size} obra(s) · ${todas.length} deptos`,col(avgG),true)}
+    ${kCard('Mayor Avance',oMax._avg+'%',oMax.nombre,col(oMax._avg),true)}
+    ${kCard('Menor Avance',oMin._avg+'%',oMin.nombre,col(oMin._avg),true)}
+    ${kCard('Total Obras',OBRAS.size,'archivos cargados','#60a5fa',false)}
+  `;
+  if(hasMG) kHtml+=kCardM('Req. Semanal Total',totSem,'Para alcanzar todas las metas');
+  document.getElementById('global-kpis').innerHTML=kHtml;
+
+  if(hasMG){
+    document.getElementById('montos-global-section').style.display='block';
+    document.getElementById('montos-global-kpis').innerHTML=`
+      ${kCardM('Presupuesto Total',totPresup,'Suma de todas las obras')}
+      ${kCardM('Ejercido',totEjerc,pct(totEjerc,totPresup)+'% del presupuesto')}
+      ${kCardM('Pendiente',totPend,pct(totPend,totPresup)+'% del presupuesto')}
+    `;
+    renderFrentesGlobal();
+  } else {
+    document.getElementById('montos-global-section').style.display='none';
+  }
+  renderComparativo();
+  renderGlobalChart();
+  renderGlobalTable();
+}
+
+window.renderFrentesGlobal=function(){
+  const sort=document.getElementById('sort-frente-g').value;
+  const mapa={};
+  OBRAS.forEach(obra=>{
+    const fin=calcFinanciero(obra,obra.s25,obra.resumen);
+    if(!fin) return;
+    fin.frentes.forEach(f=>{
+      if(!mapa[f.concepto]) mapa[f.concepto]={concepto:f.concepto,total:0,ejercido:0,pendiente:0,semanal:0,n:0};
+      mapa[f.concepto].total+=f.montoTotal;
+      mapa[f.concepto].ejercido+=f.montoEjercido;
+      mapa[f.concepto].pendiente+=f.montoPendiente;
+      mapa[f.concepto].semanal+=(f.montoPorSemana||0);
+      mapa[f.concepto].n++;
+    });
+  });
+  let fr=Object.values(mapa);
+  if(sort==='pendiente') fr.sort((a,b)=>b.pendiente-a.pendiente);
+  else if(sort==='semanal') fr.sort((a,b)=>b.semanal-a.semanal);
+  else fr.sort((a,b)=>a.concepto.localeCompare(b.concepto));
+  if(!fr.length){document.getElementById('frentes-global-tbl').innerHTML='<p style="padding:16px;font-size:12px;color:var(--txd)">Sin montos.</p>';return;}
+  let h=`<table><thead><tr><th>Frente de Trabajo</th><th>Presupuesto Total</th><th>Ejercido</th><th>% Ejercido</th><th>Pendiente</th><th style="color:var(--money)">Req. Semanal</th></tr></thead><tbody>`;
+  fr.forEach(f=>{
+    const av=pct(f.ejercido,f.total);
+    const c=col(av);
+    h+=`<tr><td>${f.concepto}</td><td class="num-r">${fmt(f.total)}</td>
+      <td class="num-r" style="color:var(--ok)">${fmt(f.ejercido)}</td>
+      <td><div class="mp"><div class="mp-bar"><div class="mp-fill" style="width:${av}%;background:${c}"></div></div>
+        <span class="mp-lbl" style="color:${c}">${av}%</span></div></td>
+      <td class="num-r" style="color:var(--warn)">${fmt(f.pendiente)}</td>
+      <td class="num-r" style="color:var(--money);font-weight:700">${fmt(f.semanal)}</td></tr>`;
+  });
+  const tP=fr.reduce((a,f)=>a+f.total,0),tE=fr.reduce((a,f)=>a+f.ejercido,0),
+        tPd=fr.reduce((a,f)=>a+f.pendiente,0),tS=fr.reduce((a,f)=>a+f.semanal,0);
+  h+=`<tr style="background:var(--s2);font-weight:700"><td>TOTAL</td><td class="num-r">${fmt(tP)}</td>
+    <td class="num-r" style="color:var(--ok)">${fmt(tE)}</td>
+    <td><span class="b ${badgeCls(pct(tE,tP))}">${pct(tE,tP)}%</span></td>
+    <td class="num-r" style="color:var(--warn)">${fmt(tPd)}</td>
+    <td class="num-r" style="color:var(--money)">${fmt(tS)}</td></tr>`;
+  h+='</tbody></table>';
+  document.getElementById('frentes-global-tbl').innerHTML=h;
+};
+
+window.renderComparativo=function(){
+  const sort=document.getElementById('sort-comp').value;
+  const obras=[...OBRAS.values()];
+  obras.forEach(o=>{
+    o._avg=round(avg(o.resumen.map(r=>r.avance)));
+    const fin=calcFinanciero(o,o.s25,o.resumen);
+    o._pend=fin?fin.totalPendiente:0;
+    o._sem=fin?fin.totalSemanal:0;
+  });
+  if(sort==='avance') obras.sort((a,b)=>b._avg-a._avg);
+  else if(sort==='nombre') obras.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  else obras.sort((a,b)=>b._pend-a._pend);
+  const spOf=o=>[...o.semanas_prop].sort((a,b)=>(SEM_NUM[a]||99)-(SEM_NUM[b]||99))[0]||'—';
+  document.getElementById('comparativo-list').innerHTML=obras.map(o=>`
+    <div class="comp-row">
+      <div class="comp-name"><span class="tab-dot" style="background:${o.color}"></span>${o.nombre}</div>
+      <div class="comp-bar-wrap"><div class="comp-bar-fill" style="width:${o._avg}%;background:${o.color};opacity:.8"></div></div>
+      <div class="comp-pct" style="color:${col(o._avg)}">${o._avg}%</div>
+      <div style="width:50px;font-size:10px;color:var(--txd);text-align:right;flex-shrink:0">${spOf(o)}</div>
+      ${o._pend>0?`<div class="comp-monto">${fmt(o._pend)}</div>`:''}
+    </div>`).join('');
+};
+
+window.renderGlobalChart=function(){
+  const ctx=document.getElementById('ch-global').getContext('2d');
+  if(chGlobal) chGlobal.destroy();
+  const obras=[...OBRAS.values()];
+  obras.forEach(o=>o._avg=round(avg(o.resumen.map(r=>r.avance))));
+  const horiz=document.getElementById('chart-type').value==='hbar';
+  chGlobal=new Chart(ctx,{type:'bar',
+    data:{labels:obras.map(o=>o.nombre),datasets:[{
+      label:'Avance %',data:obras.map(o=>o._avg),
+      backgroundColor:obras.map(o=>hex(o.color,.65)),borderColor:obras.map(o=>o.color),borderWidth:1.5,borderRadius:6,
+    }]},
+    options:{indexAxis:horiz?'y':'x',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${(horiz?c.parsed.x:c.parsed.y).toFixed(2)}%`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d5068'},...(horiz?{min:60,max:100}:{})},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8ba0bc',font:{size:11}},...(!horiz?{min:60,max:100}:{})}}}
+  });
+};
+
+window.renderGlobalTable=function(){
+  const q=document.getElementById('search-global').value.toLowerCase();
+  const ef=document.getElementById('filter-estado').value;
+  const filas=[];
+  OBRAS.forEach((obra,nombre)=>{
+    const byLote=new Map();
+    obra.resumen.forEach(r=>{
+      const k=`${r.mnz}-${r.lote}`;
+      if(!byLote.has(k)) byLote.set(k,{mnz:r.mnz,lote:r.lote,vals:[],sems:new Set()});
+      byLote.get(k).vals.push(r.avance);
+      if(r.sem_prop) byLote.get(k).sems.add(r.sem_prop);
+    });
+    byLote.forEach(d=>{
+      const av=round(avg(d.vals));
+      const spN=Math.min(...[...d.sems].map(s=>SEM_NUM[s]||99).filter(n=>n<99));
+      const sR=spN<99?spN-SEM_ACT:null;
+      const avN=sR>0?round((100-av)/sR):null;
+      const pr=av>0?Math.ceil(SEM_ACT+(100-av)/(av/SEM_ACT)):null;
+      filas.push({nombre,color:obra.color,mnz:d.mnz,lote:d.lote,av,
+        sems:[...d.sems].join('/'),spN,avN,pr,onTrack:pr&&spN<99&&pr<=spN});
+    });
+  });
+  let filtered=filas;
+  if(q) filtered=filtered.filter(f=>f.nombre.toLowerCase().includes(q)||String(f.mnz).includes(q));
+  if(ef==='ok')   filtered=filtered.filter(f=>f.av>=80);
+  if(ef==='prog') filtered=filtered.filter(f=>f.av>=70&&f.av<80);
+  if(ef==='rez')  filtered=filtered.filter(f=>f.av<70);
+  filtered.sort((a,b)=>b.av-a.av);
+  let h=`<table><thead><tr><th>Obra</th><th>MNZ</th><th>Lote</th><th>Avance S.25</th><th>Sem. Propuesta</th><th>Estado</th><th>Proyección</th><th>Req. %/sem</th></tr></thead><tbody>`;
+  filtered.forEach(f=>{
+    const c=col(f.av);
+    h+=`<tr><td><span class="tab-dot" style="background:${f.color}"></span>${f.nombre}</td><td>MNZ ${f.mnz}</td><td>Lote ${f.lote}</td>
+      <td><div class="mp"><div class="mp-bar"><div class="mp-fill" style="width:${f.av}%;background:${c}"></div></div><span class="mp-lbl" style="color:${c}">${f.av.toFixed(2)}%</span></div></td>
+      <td><span class="b b-b">${f.sems||'—'}</span></td>
+      <td><span class="b ${badgeCls(f.av)}">${statusLbl(f.av)}</span></td>
+      <td style="color:${f.onTrack?'#34d399':'#f87171'}">${f.pr?'S.'+f.pr:'—'}</td>
+      <td style="color:#fbbf24">${f.avN!=null?f.avN.toFixed(2)+'%/sem':'—'}</td></tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('global-tbl').innerHTML=h;
+};
+
+// ═══════════════════════════════════════
+//  OBRA PANEL HTML
+// ═══════════════════════════════════════
+function buildObraPanel(obra){
+  const id=safeid(obra.nombre);
+  const avgAv=round(avg(obra.resumen.map(r=>r.avance)));
+  const mnzs=[...obra.mnzs].sort();
+  const spAll=[...obra.semanas_prop].sort((a,b)=>(SEM_NUM[a]||99)-(SEM_NUM[b]||99));
+  const spLabel=spAll.join(' · ')||'—';
+  const maxSemN=Math.max(0,...spAll.map(s=>SEM_NUM[s]||0));
+  const semsRest=maxSemN?maxSemN-SEM_ACT:null;
+  const avNec=semsRest>0?round((100-avgAv)/semsRest):null;
+  const rit=avgAv/SEM_ACT;
+  const proy=rit>0?Math.ceil(SEM_ACT+(100-avgAv)/rit):null;
+  const onTrack=proy&&maxSemN&&proy<=maxSemN;
+  const mnzOpts=mnzs.map(m=>`<option value="${m}">MNZ ${m}</option>`).join('');
+  const spOpts=spAll.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const alertHtml=obra.hasMontos
+    ?`<div class="alert alert-ok">💰 Hoja MONTOS detectada — ${Object.keys(obra.montos).length} conceptos con monto unitario. Haz clic en <strong>"💰 Montos y Requerimientos"</strong> para ver el análisis financiero.</div>`
+    :`<div class="alert alert-info">ℹ️ Sin hoja MONTOS. Agrégala con columnas <strong>CONCEPTO</strong> y <strong>MONTO UNITARIO</strong> para activar el análisis financiero.</div>`;
+
+  const frConceptos=obra.hasMontos?obra.conceptos.filter(c=>{
+    const k=c.toUpperCase().trim();
+    return obra.montos[k]||Object.keys(obra.montos).find(mk=>mk.trim()===k);
+  }):[];
+  const frenteOpts=frConceptos.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+  return `
+  <div class="obra-hdr">
+    <div><div class="obra-title"><span class="obra-dot" style="background:${obra.color}"></span>${obra.nombre}</div>
+      <div class="obra-meta">${obra.resumen.length} deptos activos · S.${SEM_ACT} actual · Meta: ${spLabel}</div></div>
+    <div class="frow" style="margin:0">
+      <select id="sel-mnz-${id}" onchange="filtrarObra('${obra.nombre}')"><option value="">Todas las MNZ</option>${mnzOpts}</select>
+      <select id="sel-sp-${id}" onchange="filtrarObra('${obra.nombre}')"><option value="">Todas las Sem. Prop.</option>${spOpts}</select>
+    </div>
+  </div>
+  ${alertHtml}
+  <div class="sub-tabs">
+    <button class="sub-tab on" onclick="switchSub('${id}','avance',this)">📊 Avance</button>
+    ${obra.hasMontos?`<button class="sub-tab" onclick="switchSub('${id}','montos',this)">💰 Montos y Requerimientos</button>`:''}
+  </div>
+
+  <!-- AVANCE SUB-PANEL -->
+  <div class="sp on" id="sp-avance-${id}">
+    <div class="pills">
+      <div class="pill"><div class="pill-val" style="color:${col(avgAv)}">${avgAv.toFixed(2)}<span style="font-size:13px;color:var(--txd)">%</span></div><div class="pill-lbl">Avance S.25</div></div>
+      <div class="pill"><div class="pill-val" style="color:var(--acl)">S.${SEM_ACT}</div><div class="pill-lbl">Semana actual</div></div>
+      <div class="pill"><div class="pill-val" style="color:#fbbf24;font-size:16px">${spLabel}</div><div class="pill-lbl">Sem. propuesta</div></div>
+      <div class="pill"><div class="pill-val" style="color:${onTrack?'#34d399':'#f87171'}">${proy?'S.'+proy:'—'}</div><div class="pill-lbl">Sem. proyectada</div></div>
+    </div>
+    <div class="ded"><h4>📐 Deducción de Ritmo Semanal</h4><p>${avNec!=null
+      ?`Para cumplir <strong style="color:var(--tx)">${spLabel}</strong> desde <strong style="color:var(--acl)">${avgAv.toFixed(2)}%</strong> se requieren <strong style="color:#fbbf24">${avNec.toFixed(2)}%/sem</strong> durante ${semsRest} semana(s). ${onTrack?'<span style="color:#34d399">✓ En tiempo.</span>':'<span style="color:#f87171">⚠ Al ritmo actual proyección S.'+proy+' ('+((proy||0)-maxSemN)+' sem de retraso).</span>'}`
+      :'Sin semana propuesta detectada.'}</p></div>
+    <div class="g2">
+      <div class="cc" style="margin-bottom:0"><div class="cc-hdr"><span class="cc-title">Avance por MNZ</span></div>
+        <div class="ch" style="height:240px"><canvas id="ch-${id}-mnz"></canvas></div></div>
+      <div class="cc" style="margin-bottom:0"><div class="cc-hdr"><span class="cc-title">Avance por Concepto</span></div>
+        <div class="ch" style="height:240px"><canvas id="ch-${id}-conc"></canvas></div></div>
+    </div>
+    <div class="div"></div>
+    <div class="cc"><div class="cc-hdr"><span class="cc-title">Detalle por Lote</span></div>
+      <div class="tbl-wrap" id="tbl-avance-${id}"></div></div>
+  </div>
+
+  <!-- MONTOS SUB-PANEL -->
+  ${obra.hasMontos?`
+  <div class="sp" id="sp-montos-${id}">
+    <!-- Pills financieras (se llenan dinámicamente) -->
+    <div class="pills" id="pills-montos-${id}"></div>
+    <div class="cc">
+      <div class="cc-hdr">
+        <span class="cc-title">💰 Requerimiento por Frente de Trabajo</span>
+        <select id="sort-frente-${id}" onchange="renderFrentesObra('${obra.nombre}')">
+          <option value="pendiente">Mayor pendiente</option>
+          <option value="semanal">Mayor req. semanal</option>
+          <option value="concepto">Concepto A-Z</option>
+          <option value="avance">Menor avance</option>
+        </select>
+      </div>
+      <div class="ch" style="height:300px;margin-bottom:20px"><canvas id="ch-${id}-montos"></canvas></div>
+      <div class="tbl-wrap" id="tbl-montos-${id}"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr">
+        <span class="cc-title">Desglose por Lote — Frente seleccionado</span>
+        <select id="sel-frente-${id}" onchange="renderReqLote('${obra.nombre}')">${frenteOpts}</select>
+      </div>
+      <div class="tbl-wrap" id="tbl-req-lote-${id}"></div>
+    </div>
+  </div>`:''}
+  `;
+}
+
+window.switchSub=function(id,sub,btn){
+  document.querySelectorAll(`#panel-obra-${id} .sub-tab`).forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll(`#panel-obra-${id} .sp`).forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById(`sp-${sub}-${id}`).classList.add('on');
+  if(sub==='montos'){
+    const name=[...OBRAS.keys()].find(n=>safeid(n)===id);
+    if(name){renderFrentesObra(name);renderReqLote(name);}
+  }
+};
+
+// ═══════════════════════════════════════
+//  CHARTS POR OBRA
+// ═══════════════════════════════════════
+function renderObraCharts(obraName){
+  const obra=OBRAS.get(obraName); if(!obra) return;
+  const id=safeid(obraName);
+  const mnzs=[...obra.mnzs].sort();
+  const ctx1=document.getElementById('ch-'+id+'-mnz')?.getContext('2d');
+  if(ctx1){
+    if(obraCharts[id+'mnz']) obraCharts[id+'mnz'].destroy();
+    obraCharts[id+'mnz']=new Chart(ctx1,{type:'bar',
+      data:{labels:mnzs.map(m=>'MNZ '+m),datasets:[{label:'%',
+        data:mnzs.map(m=>round(avg(obra.resumen.filter(r=>r.mnz===m).map(r=>r.avance)))),
+        backgroundColor:hex(obra.color,.6),borderColor:obra.color,borderWidth:1.5,borderRadius:8}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(2)}%`}}},
+        scales:{x:{grid:{display:false},ticks:{color:'#3d5068',font:{size:12,weight:'700'}}},
+          y:{min:60,max:100,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d5068',callback:v=>v+'%'}}}}});
+  }
+  const ctx2=document.getElementById('ch-'+id+'-conc')?.getContext('2d');
+  if(ctx2&&obra.conceptos.length){
+    const ca=obra.conceptos.map(c=>round(avg(obra.s25.map(r=>r.conceptos[c]||0))));
+    if(obraCharts[id+'conc']) obraCharts[id+'conc'].destroy();
+    obraCharts[id+'conc']=new Chart(ctx2,{type:'bar',
+      data:{labels:obra.conceptos.map(c=>shorten(c,20)),datasets:[{label:'%',data:ca,
+        backgroundColor:ca.map(v=>hex(col(v),.6)),borderColor:ca.map(v=>col(v)),borderWidth:1.5,borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{title:ctx=>obra.conceptos[ctx[0].dataIndex],label:c=>` ${c.parsed.x.toFixed(1)}%`}}},
+        scales:{x:{min:0,max:100,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d5068',callback:v=>v+'%'}},
+          y:{grid:{display:false},ticks:{color:'#8ba0bc',font:{size:9}}}}}});
+  }
+  filtrarObra(obraName);
+}
+
+// ═══════════════════════════════════════
+//  FILTRAR AVANCE POR OBRA
+// ═══════════════════════════════════════
+window.filtrarObra=function(obraName){
+  const obra=OBRAS.get(obraName); if(!obra) return;
+  const id=safeid(obraName);
+  const mnzF=document.getElementById('sel-mnz-'+id)?.value;
+  const spF=document.getElementById('sel-sp-'+id)?.value;
+  let rows=obra.resumen;
+  if(mnzF) rows=rows.filter(r=>r.mnz==mnzF);
+  if(spF)  rows=rows.filter(r=>r.sem_prop===spF);
+  const byLote=new Map();
+  rows.forEach(r=>{
+    const k=`${r.mnz}-${r.lote}`;
+    if(!byLote.has(k)) byLote.set(k,{mnz:r.mnz,lote:r.lote,vals:[],sems:new Set(),n:0});
+    byLote.get(k).vals.push(r.avance);byLote.get(k).sems.add(r.sem_prop);byLote.get(k).n++;
+  });
+  const lotes=[...byLote.values()].map(d=>{
+    const av=round(avg(d.vals));
+    const sNs=[...d.sems].map(s=>SEM_NUM[s]||99).filter(n=>n<99);
+    const spN=sNs.length?Math.min(...sNs):null;
+    const sR=spN?spN-SEM_ACT:null;
+    const avN=sR>0?round((100-av)/sR):null;
+    const pr=av>0?Math.ceil(SEM_ACT+(100-av)/(av/SEM_ACT)):null;
+    return{...d,avance:av,spN,spLabel:[...d.sems].filter(Boolean).join('/'),avNec:avN,proy:pr,onTrack:pr&&spN&&pr<=spN};
+  }).sort((a,b)=>b.avance-a.avance);
+  const tbl=document.getElementById('tbl-avance-'+id); if(!tbl) return;
+  let h=`<table><thead><tr><th>MNZ</th><th>Lote</th><th>Avance</th><th>Sem. Propuesta</th><th>Estado</th><th>Proyección</th><th>Av. Sem. Nec.</th><th>Deptos</th></tr></thead><tbody>`;
+  lotes.forEach(l=>{
+    const c=col(l.avance);
+    h+=`<tr><td>MNZ ${l.mnz}</td><td>Lote ${l.lote}</td>
+      <td><div class="mp"><div class="mp-bar"><div class="mp-fill" style="width:${l.avance}%;background:${c}"></div></div><span class="mp-lbl" style="color:${c}">${l.avance.toFixed(2)}%</span></div></td>
+      <td><span class="b b-b">${l.spLabel||'—'}</span></td>
+      <td><span class="b ${badgeCls(l.avance)}">${statusLbl(l.avance)}</span></td>
+      <td style="color:${l.onTrack?'#34d399':'#f87171'}">${l.proy?'S.'+l.proy:'—'}</td>
+      <td style="color:#fbbf24">${l.avNec!=null?l.avNec.toFixed(2)+'%/sem':'—'}</td>
+      <td style="color:var(--txd)">${l.n}</td></tr>`;
+  });
+  h+='</tbody></table>';
+  tbl.innerHTML=h;
+};
+
+// ═══════════════════════════════════════
+//  FRENTES POR OBRA (MONTOS)
+// ═══════════════════════════════════════
+window.renderFrentesObra=function(obraName){
+  const obra=OBRAS.get(obraName); if(!obra||!obra.hasMontos) return;
+  const id=safeid(obraName);
+  const sort=document.getElementById('sort-frente-'+id)?.value||'pendiente';
+  const fin=calcFinanciero(obra,obra.s25,obra.resumen);
+
+  if(!fin){
+    const msg='<p style="padding:20px;color:var(--txd);font-size:12px">No se pudo calcular. Verifica que los conceptos de S.25 coincidan con los de la hoja MONTOS.</p>';
+    document.getElementById('tbl-montos-'+id).innerHTML=msg;
+    return;
+  }
+
+  // Pills financieras
+  document.getElementById('pills-montos-'+id).innerHTML=`
+    <div class="pill monto-card"><div class="pill-val" style="color:var(--money);font-size:18px">${fmt(fin.totalPresup)}</div><div class="pill-lbl">Presupuesto total</div></div>
+    <div class="pill monto-card"><div class="pill-val" style="color:var(--ok);font-size:18px">${fmt(fin.totalEjercido)}</div><div class="pill-lbl">Ejercido · ${pct(fin.totalEjercido,fin.totalPresup)}%</div></div>
+    <div class="pill monto-card"><div class="pill-val" style="color:var(--warn);font-size:18px">${fmt(fin.totalPendiente)}</div><div class="pill-lbl">Pendiente por ejercer</div></div>
+    <div class="pill monto-card"><div class="pill-val" style="color:#f97316;font-size:18px">${fmt(fin.totalSemanal)}</div><div class="pill-lbl">Req. semanal para meta</div></div>
+    ${fin.semsRest?`<div class="pill"><div class="pill-val" style="color:var(--acl)">${fin.semsRest}</div><div class="pill-lbl">Semanas restantes</div></div>`:''}
+  `;
+
+  // Sort frentes
+  let frentes=[...fin.frentes];
+  if(sort==='pendiente') frentes.sort((a,b)=>b.montoPendiente-a.montoPendiente);
+  else if(sort==='semanal') frentes.sort((a,b)=>(b.montoPorSemana||0)-(a.montoPorSemana||0));
+  else if(sort==='concepto') frentes.sort((a,b)=>a.concepto.localeCompare(b.concepto));
+  else frentes.sort((a,b)=>a.avProm-b.avProm);
+
+  // Chart barras apiladas ejercido/pendiente
+  const ctx=document.getElementById('ch-'+id+'-montos')?.getContext('2d');
+  if(ctx){
+    if(obraCharts[id+'montos']) obraCharts[id+'montos'].destroy();
+    obraCharts[id+'montos']=new Chart(ctx,{type:'bar',
+      data:{labels:frentes.map(f=>shorten(f.concepto,24)),datasets:[
+        {label:'Ejercido',data:frentes.map(f=>f.montoEjercido),backgroundColor:'rgba(16,185,129,.7)',stack:'s',borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4}},
+        {label:'Pendiente',data:frentes.map(f=>f.montoPendiente),backgroundColor:'rgba(245,158,11,.5)',stack:'s',borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0}},
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#8ba0bc',font:{size:11}},position:'top'},
+          tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.parsed.x)}`}}},
+        scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d5068',callback:v=>fmtS(v)}},
+          y:{stacked:true,grid:{display:false},ticks:{color:'#8ba0bc',font:{size:9}}}}}});
+  }
+
+  // Tabla
+  let h=`<table><thead><tr>
+    <th>Frente de Trabajo</th><th>Precio Unitario</th><th>Deptos</th>
+    <th>Presupuesto Total</th><th>Ejercido</th><th>% Avance</th>
+    <th>Pendiente</th><th style="color:var(--money)">Req. Semanal</th><th>Sem. restantes</th>
+  </tr></thead><tbody>`;
+  frentes.forEach(f=>{
+    const c=col(f.avProm);
+    h+=`<tr><td>${f.concepto}</td><td class="num-r">${fmt(f.montoUnit)}</td>
+      <td style="text-align:center;color:var(--txd)">${f.nDeptos}</td>
+      <td class="num-r">${fmt(f.montoTotal)}</td>
+      <td class="num-r" style="color:var(--ok)">${fmt(f.montoEjercido)}</td>
+      <td><div class="mp"><div class="mp-bar"><div class="mp-fill" style="width:${f.avProm}%;background:${c}"></div></div>
+        <span class="mp-lbl" style="color:${c}">${f.avProm}%</span></div></td>
+      <td class="num-r" style="color:var(--warn)">${fmt(f.montoPendiente)}</td>
+      <td class="num-r" style="color:var(--money);font-weight:700">${f.montoPorSemana!=null?fmt(f.montoPorSemana):'—'}</td>
+      <td style="color:var(--txd);font-size:10px">${f.semsRest!=null?f.semsRest+' sem':'—'}</td></tr>`;
+  });
+  h+=`<tr style="background:var(--s2);font-weight:700"><td colspan="3">TOTAL</td>
+    <td class="num-r">${fmt(fin.totalPresup)}</td>
+    <td class="num-r" style="color:var(--ok)">${fmt(fin.totalEjercido)}</td>
+    <td><span class="b ${badgeCls(pct(fin.totalEjercido,fin.totalPresup))}">${pct(fin.totalEjercido,fin.totalPresup)}%</span></td>
+    <td class="num-r" style="color:var(--warn)">${fmt(fin.totalPendiente)}</td>
+    <td class="num-r" style="color:var(--money)">${fmt(fin.totalSemanal)}</td><td>—</td></tr>`;
+  h+='</tbody></table>';
+  document.getElementById('tbl-montos-'+id).innerHTML=h;
+};
+
+// ═══════════════════════════════════════
+//  REQ POR LOTE
+// ═══════════════════════════════════════
+window.renderReqLote=function(obraName){
+  const obra=OBRAS.get(obraName); if(!obra||!obra.hasMontos) return;
+  const id=safeid(obraName);
+  const selEl=document.getElementById('sel-frente-'+id); if(!selEl||!selEl.value) return;
+  const concepto=selEl.value;
+  const cKey=concepto.toUpperCase().trim();
+  let montoUnit=obra.montos[cKey]||0;
+  if(!montoUnit){const f=Object.entries(obra.montos).find(([k])=>k.trim()===cKey);if(f) montoUnit=f[1];}
+  if(!montoUnit) return;
+
+  const byLote=new Map();
+  obra.s25.forEach(r=>{
+    const k=`${r.mnz}-${r.lote}`;
+    if(!byLote.has(k)) byLote.set(k,{mnz:r.mnz,lote:r.lote,avs:[],sems:new Set()});
+    byLote.get(k).avs.push(r.conceptos[concepto]||0);
+  });
+  obra.resumen.forEach(r=>{
+    const k=`${r.mnz}-${r.lote}`;
+    if(byLote.has(k)&&r.sem_prop) byLote.get(k).sems.add(r.sem_prop);
+  });
+
+  const lotes=[...byLote.values()].map(d=>{
+    const avP=round(avg(d.avs));
+    const n=d.avs.length;
+    const mT=montoUnit*n;
+    const ej=round(mT*(avP/100));
+    const pe=round(mT-ej);
+    const sNs=[...d.sems].map(s=>SEM_NUM[s]||99).filter(x=>x<99);
+    const spN=sNs.length?Math.min(...sNs):null;
+    const sR=spN?spN-SEM_ACT:null;
+    const sQ=sR>0?round(pe/sR):null;
+    return{...d,avP,n,mT,ej,pe,spN,sR,sQ};
+  }).sort((a,b)=>b.pe-a.pe);
+
+  const tbl=document.getElementById('tbl-req-lote-'+id); if(!tbl) return;
+  let h=`<table><thead><tr>
+    <th>MNZ</th><th>Lote</th><th>Deptos</th><th>Avance ${shorten(concepto,20)}</th>
+    <th>Presupuesto</th><th>Ejercido</th><th>Pendiente</th>
+    <th style="color:var(--money)">Req. Semanal</th><th>Sems restantes</th>
+  </tr></thead><tbody>`;
+  lotes.forEach(l=>{
+    const c=col(l.avP);
+    h+=`<tr><td>MNZ ${l.mnz}</td><td>Lote ${l.lote}</td>
+      <td style="text-align:center;color:var(--txd)">${l.n}</td>
+      <td><div class="mp"><div class="mp-bar"><div class="mp-fill" style="width:${l.avP}%;background:${c}"></div></div>
+        <span class="mp-lbl" style="color:${c}">${l.avP}%</span></div></td>
+      <td class="num-r">${fmt(l.mT)}</td>
+      <td class="num-r" style="color:var(--ok)">${fmt(l.ej)}</td>
+      <td class="num-r" style="color:var(--warn)">${fmt(l.pe)}</td>
+      <td class="num-r" style="color:var(--money);font-weight:700">${l.sQ!=null?fmt(l.sQ):'—'}</td>
+      <td style="color:var(--txd);font-size:10px">${l.sR!=null?l.sR+' sem':'—'}</td></tr>`;
+  });
+  const tT=lotes.reduce((a,l)=>a+l.mT,0),tE=lotes.reduce((a,l)=>a+l.ej,0),
+        tP=lotes.reduce((a,l)=>a+l.pe,0),tS=lotes.reduce((a,l)=>a+(l.sQ||0),0);
+  h+=`<tr style="background:var(--s2);font-weight:700"><td colspan="4">TOTAL ${shorten(concepto,18)}</td>
+    <td class="num-r">${fmt(tT)}</td><td class="num-r" style="color:var(--ok)">${fmt(tE)}</td>
+    <td class="num-r" style="color:var(--warn)">${fmt(tP)}</td>
+    <td class="num-r" style="color:var(--money)">${fmt(tS)}</td><td>—</td></tr>`;
+  h+='</tbody></table>';
+  tbl.innerHTML=h;
+};
+
+// ═══════════════════════════════════════
+//  CLEAR
+// ═══════════════════════════════════════
+window.clearAll=function(){
+  if(!OBRAS.size||!confirm('¿Eliminar todas las obras?')) return;
+  OBRAS.clear();
+  document.querySelectorAll('.tab.obra-tab').forEach(b=>b.remove());
+  document.getElementById('obra-panels').innerHTML='';
+  document.getElementById('global-empty').style.display='block';
+  document.getElementById('global-content').style.display='none';
+  document.getElementById('n-obras').textContent='0';
+  document.getElementById('n-montos').textContent='0';
+  document.getElementById('money-badge').style.display='none';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelector('[data-tab="global"]').classList.add('on');
+  document.getElementById('panel-global').classList.add('on');
+};
+
+// ═══════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════
+function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:0}
+function round(v,d=2){return Math.round(v*10**d)/10**d}
+function pct(a,b){return b?round(a/b*100):0}
+function col(p){return p>=80?'#10b981':p>=70?'#f59e0b':'#ef4444'}
+function badgeCls(p){return p>=80?'b-g':p>=70?'b-y':'b-r'}
+function statusLbl(p){return p>=80?'En tiempo':p>=70?'En progreso':'Rezagado'}
+function fmt(n){if(n==null) return '—'; return '$'+Math.round(n).toLocaleString('es-MX');}
+function fmtS(n){if(n>=1e6) return '$'+(n/1e6).toFixed(1)+'M';if(n>=1e3) return '$'+(n/1e3).toFixed(0)+'k';return '$'+n;}
+function hex(c,a){const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);return `rgba(${r},${g},${b},${a})`}
+function safeid(s){return s.replace(/[^a-z0-9]/gi,'_')}
+function shorten(s,n){return s.length>n?s.slice(0,n)+'…':s}
+function kCard(lbl,val,sub,c,prog){
+  const p=parseFloat(val)||0;
+  return `<div class="card"><div class="card-stripe" style="background:${c}"></div>
+    <div class="card-lbl">${lbl}</div><div class="card-val" style="color:${c}">${val}</div>
+    <div class="card-sub">${sub}</div>
+    ${prog?`<div class="prog-bg"><div class="prog-fg" style="width:${Math.min(p,100)}%;background:${c}"></div></div>`:''}
+  </div>`;}
+function kCardM(lbl,val,sub){
+  return `<div class="card monto-card"><div class="card-stripe" style="background:var(--money)"></div>
+    <div class="card-lbl">${lbl}</div><div class="card-val" style="color:var(--money);font-size:22px">${fmt(val)}</div>
+    <div class="card-sub">${sub}</div></div>`;}
+</script>
+</body>
+</html>
